@@ -7,7 +7,7 @@ license:              MIT
 license-file:         LICENSE
 author:               functionalconcepts.org team
 maintainer:           team@functionalconcepts.org
-copyright:            Copyright (C) 2016 functionalconcepts.org team
+copyright:            Copyright (C) 2017 functionalconcepts.org team
 category:             Miscellaneous
 build-type:           Simple
 -- extra-source-files:
@@ -15,13 +15,14 @@ cabal-version:        >=1.10
 
 library
   hs-source-dirs:     src
-  exposed-modules:    Rock
-                    , Doit
+  exposed-modules:    Doit
                     , Effects
                     , Logger
                     , Memo
-                    , Parsing
+                    , Rock
+                    --, Parsing
                     , Xplore.Extensible
+                    , Xplore.PipesTut
                     , Yapa
                     , Data.String.Strip
   build-depends:      base >= 4.7 && < 5
@@ -33,10 +34,12 @@ library
                     , megaparsec
                     , reactive-banana
                     , text
-                    , distributed-process
-                    , distributed-process-simplelocalnet
+                    -- , distributed-process
+                    -- , distributed-process-simplelocalnet
                     , network
                     , network-transport-tcp
+                    , pipes
+                    , QuickCheck
   default-language:   Haskell2010
 
 executable fco-xplore

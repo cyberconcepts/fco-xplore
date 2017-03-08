@@ -15,7 +15,7 @@ import Network (PortID,
           accept, listenOn, sClose)
 import System.IO (Handle, IOMode(ReadWriteMode),
           hGetLine, hClose, hPutStrLn, withFile)
-import Data.Text (unpack)
+import Data.Text (pack)
 
 
 pureCatcher :: (NFData a) => a -> IO (Maybe a)
@@ -74,7 +74,7 @@ parseMove = extract . reads
 
 getMove :: Handle -> IO Move
 getMove h = do
-  hPutStrLn h $ unpack $ "Please enter one of " ++ show ([minBound..] :: [Move])
+  hPutStrLn h $ "Please enter one of " ++ show ([minBound..] :: [Move])
   input <- hGetLine h
   case parseMove input of Just move -> return move
                           Nothing -> getMove h
@@ -84,7 +84,7 @@ computerVsUser :: Move -> Handle -> IO ()
 computerVsUser computerMove h = do
   userMove <- getMove h
   let o = outcome userMove computerMove
-  hPutStrLn h $ unpack $ "You " ++ show o
+  hPutStrLn h $ "You " ++ show o
 
 
 withTty :: (Handle -> IO a) -> IO a
@@ -95,7 +95,7 @@ withClient :: PortID -> (Handle -> IO a) -> IO a
 withClient portId readFn = do
     soc <- listenOn portId
     (hndl, host, port) <- accept soc
-    putStrLn $ "Connection established, host: " ++ show host ++ ", Port: " ++ show port
+    putStrLn $ pack $ "Connection established, host: " ++ show host ++ ", Port: " ++ show port
     sClose soc
     value <- readFn hndl
     hClose hndl
