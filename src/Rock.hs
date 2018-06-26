@@ -9,7 +9,7 @@ module Rock where
 
 import BasicPrelude
 import Control.DeepSeq (NFData, deepseq)
-import Control.Exception (SomeException (..))
+import Control.Exception (SomeException (..), catch)
 import Data.Char (isLower)
 import Network (PortID,
           accept, listenOn, sClose)

@@ -25,21 +25,26 @@ library
                     , Xplore.PipesTut
                     , Yapa
                     , Data.String.Strip
+                    , Messaging.ForthProxy
   build-depends:      base >= 4.7 && < 5
                     , base-compat
                     , basic-prelude
+                    , comonad
                     , containers
                     , deepseq
                     , extensible-effects
                     , megaparsec
-                    , reactive-banana
+                    -- , reactive-banana
                     , text
                     -- , distributed-process
                     -- , distributed-process-simplelocalnet
                     , network
                     , network-transport-tcp
                     , pipes
+                    , pipes-text
+                    , process
                     , QuickCheck
+                    , turtle
   default-language:   Haskell2010
 
 executable fco-xplore
