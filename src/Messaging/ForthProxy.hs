@@ -11,7 +11,7 @@ import Control.Distributed.Process (Process, liftIO)
 import Control.Distributed.Process.Backend.SimpleLocalnet (
     initializeBackend, newLocalNode)
 import Control.Distributed.Process.Node (
-    initRemoteTable, forkProcess)
+    initRemoteTable, forkProcess, runProcess)
 
 import System.IO (
     BufferMode (NoBuffering), Handle,
@@ -39,15 +39,15 @@ run = do
       hSetBuffering hIn NoBuffering
       hSetBuffering hOut NoBuffering
       pid <- forkProcess node $ process4thOutput hOut 
-      provide4thInput hIn
+      runProcess node $ provide4thInput hIn
 
 
-provide4thInput :: Handle -> IO ()
+provide4thInput :: Handle -> Process ()
 provide4thInput handle = do
-  s <- getLine
+  s <- liftIO getLine
   case s of 
-    "bye" -> hPutStr handle "bye\n"
-    _ -> (hPutStr handle $ unpack (s ++ "\n")) >>
+    "bye" -> liftIO $ hPutStr handle "bye\n"
+    _ -> (liftIO $ hPutStr handle $ unpack (s ++ "\n")) >>
          provide4thInput handle
 
 
