@@ -3,30 +3,42 @@
 module Messaging.ForthProxy where
 
 import BasicPrelude
-import Control.Concurrent (forkIO)
+import Data.Text (unpack)
+
 import Control.Monad (forever)
+
+import Control.Distributed.Process (Process, liftIO)
+import Control.Distributed.Process.Backend.SimpleLocalnet (
+    initializeBackend, newLocalNode)
+import Control.Distributed.Process.Node (
+    initRemoteTable, forkProcess)
+
 import System.IO (
     BufferMode (NoBuffering), Handle,
     hSetBuffering, hFlush, hGetContents, hGetLine, hPutStr, openFile)
 import System.Process (
     StdStream (CreatePipe), 
     proc, shell, std_in, std_out, withCreateProcess)
-import Data.Text (unpack)
 
 
 forthHome = "~/development/forth/"
 forthModule = "xplore/interact.fs"
 forthCommand = "gforth " ++ forthHome ++ forthModule ++ " -e repl"
 
+host = "127.0.0.1"
+port = "8899"
+
 
 run :: IO ()
-run = 
+run = do
+  backend <- initializeBackend host port initRemoteTable
+  node <- newLocalNode backend
   withCreateProcess (shell forthCommand)
     { std_in = CreatePipe, std_out = CreatePipe } 
     $ \(Just hIn) (Just hOut) _ hProc -> do
       hSetBuffering hIn NoBuffering
       hSetBuffering hOut NoBuffering
-      forkIO $ process4thOutput hOut
+      pid <- forkProcess node $ process4thOutput hOut 
       provide4thInput hIn
 
 
@@ -39,6 +51,6 @@ provide4thInput handle = do
          provide4thInput handle
 
 
-process4thOutput :: Handle -> IO ()
-process4thOutput handle = 
-  forever $ hGetLine handle >>= print
+process4thOutput :: Handle -> Process ()
+process4thOutput handle =
+  forever $ liftIO $ hGetLine handle >>= print

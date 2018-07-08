@@ -36,8 +36,8 @@ library
                     , megaparsec
                     -- , reactive-banana
                     , text
-                    -- , distributed-process
-                    -- , distributed-process-simplelocalnet
+                    , distributed-process
+                    , distributed-process-simplelocalnet
                     , network
                     , network-transport-tcp
                     , pipes
