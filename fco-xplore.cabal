@@ -16,32 +16,33 @@ cabal-version:        >=1.10
 library
   hs-source-dirs:     src
   exposed-modules:    Doit
-                    , Effects
+                    --, Effects
                     , Logger
                     , Memo
                     , Rock
                     --, Parsing
-                    , Xplore.Extensible
-                    , Xplore.PipesTut
+                    --, Xplore.Extensible
+                    --, Xplore.PipesTut
                     , Yapa
                     , Data.String.Strip
                     , Messaging.ForthProxy
   build-depends:      base >= 4.7 && < 5
                     , base-compat
                     , basic-prelude
-                    , comonad
+                    --, comonad
                     , containers
                     , deepseq
-                    , extensible-effects
+                    --, extensible-effects
+                    , freer-simple
                     , megaparsec
-                    -- , reactive-banana
+                    --, reactive-banana
                     , text
                     , distributed-process
                     , distributed-process-simplelocalnet
                     , network
                     , network-transport-tcp
-                    , pipes
-                    , pipes-text
+                    --, pipes
+                    --, pipes-text
                     , process
                     , QuickCheck
                     , turtle
