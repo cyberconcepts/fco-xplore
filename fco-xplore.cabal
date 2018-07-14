@@ -29,11 +29,13 @@ library
   build-depends:      base >= 4.7 && < 5
                     , base-compat
                     , basic-prelude
+                    , binary
                     --, comonad
                     , containers
                     , deepseq
                     --, extensible-effects
                     , freer-simple
+                    , generic-deriving
                     , megaparsec
                     --, reactive-banana
                     , text
