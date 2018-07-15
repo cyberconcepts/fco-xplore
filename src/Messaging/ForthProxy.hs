@@ -12,8 +12,10 @@ import GHC.Generics (Generic)
 
 
 import Control.Distributed.Process (
-    Process, ProcessId,
-    expect, expectTimeout, getSelfPid, liftIO, send, spawnLocal)
+    Message, Process, ProcessId,
+    expect, expectTimeout, getSelfPid, liftIO, 
+    match, matchAny, receiveWait,
+    send, spawnLocal)
 import Control.Distributed.Process.Backend.SimpleLocalnet (
     initializeBackend, newLocalNode)
 import Control.Distributed.Process.Node (
@@ -35,9 +37,9 @@ host = "127.0.0.1"
 port = "8899"
 
 
-data Message = ConMsg Text | FthMsg Text | QuitMsg
+data Msg = ConMsg Text | FthMsg Text | QuitMsg
   deriving (Show, Generic, Typeable)
-instance Binary Message
+instance Binary Msg
 
 
 -- console
@@ -61,7 +63,7 @@ conReader p =
 
 
 conWriter :: ConSrv
-conWriter p = (expect :: Process Text) >>= putStrLn
+conWriter p = forever $ do expect >>= putStrLn
 
 
 -- Forth stuff
