@@ -4,16 +4,15 @@
 module Messaging.ForthProxy where
 
 import BasicPrelude
-import Data.Text (pack, unpack)
+import qualified Data.Text as T
 
 import Data.Binary (Binary)
 import Control.Monad (forever)
 import GHC.Generics (Generic)
 
-
 import Control.Distributed.Process (
     Message, Process, ProcessId,
-    expect, expectTimeout, getSelfPid, liftIO, 
+    expect, expectTimeout, getSelfPid, 
     match, matchAny, receiveWait,
     send, spawnLocal)
 import Control.Distributed.Process.Backend.SimpleLocalnet (
@@ -37,12 +36,22 @@ host = "127.0.0.1"
 port = "8899"
 
 
-data Msg = ConMsg Text | FthMsg Text | QuitMsg
+-- control
+
+data CtlMsg = QuitMsg
   deriving (Show, Generic, Typeable)
-instance Binary Msg
+instance Binary CtlMsg
+
+processQuit :: ProcessId -> CtlMsg -> Process Bool
+processQuit pid QuitMsg = 
+    send pid ("bye\n" :: Text) >> return False
 
 
 -- console
+
+data ConMsg = ConMsg Text
+  deriving (Show, Generic, Typeable)
+instance Binary ConMsg
 
 type ConSrv = ProcessId -> Process ()
 
@@ -61,12 +70,19 @@ conReader p =
       "bye" -> send p QuitMsg
       _ -> send p $ ConMsg line
 
-
 conWriter :: ConSrv
 conWriter p = forever $ do expect >>= putStrLn
 
+processConMsg :: ProcessId -> ConMsg -> Process Bool
+processConMsg pid (ConMsg txt) = 
+    send pid txt >> return True
+
 
 -- Forth stuff
+
+data FthMsg = FthMsg Text
+  deriving (Show, Generic, Typeable)
+instance Binary FthMsg
 
 type FthSrv = ProcessId -> Handle -> Process ()
 
@@ -81,13 +97,17 @@ fthOutput :: FthSrv
 fthOutput p hOut = 
   forever $ do 
     line <- liftIO $ hGetLine hOut
-    send p $ FthMsg $ pack line
+    send p $ FthMsg $ T.pack line
 
 fthInput :: FthSrv
 fthInput p hIn = 
   forever $ do 
     line <- expect
-    liftIO $ hPutStrLn hIn $ unpack line
+    liftIO $ hPutStrLn hIn $ T.unpack line
+
+processFthMsg :: ProcessId -> FthMsg -> Process Bool
+processFthMsg pid (FthMsg txt) = 
+    send pid txt >> return True
 
 
 -- message dispatching
@@ -108,9 +128,11 @@ run = do
           loop fthIn conW
           where 
             loop fthIn conW = do
-                msg <- expect
-                case msg of
-                  QuitMsg -> send fthIn ("bye\n" :: Text)
-                  ConMsg txt -> send fthIn txt >> loop fthIn conW
-                  FthMsg txt -> send conW txt >> loop fthIn conW
+              continue <- receiveWait [
+                    match $ processQuit fthIn, 
+                    match $ processFthMsg conW, 
+                    match $ processConMsg fthIn]
+              case continue of
+                True -> loop fthIn conW
+                _ -> return ()
 
