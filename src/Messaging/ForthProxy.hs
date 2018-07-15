@@ -1,8 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
-{-# LANGUAGE GADTs, ScopedTypeVariables #-}
 {-# LANGUAGE DeriveDataTypeable, DeriveGeneric #-}
-
---{-# LANGUAGE DataKinds, FlexibleContexts #-}
 
 module Messaging.ForthProxy where
 
@@ -38,9 +35,9 @@ host = "127.0.0.1"
 port = "8899"
 
 
-data ForthProxy r where 
-  SendInput :: String -> ForthProxy ()
-  ReceiveOutput :: ForthProxy String
+data Message = ConMsg Text | FthMsg Text | QuitMsg
+  deriving (Show, Generic, Typeable)
+instance Binary Message
 
 
 -- console
@@ -60,12 +57,11 @@ conReader p =
     line <- getLine
     case line of
       "bye" -> send p QuitMsg
-      _ -> send p $ ConMsg $ unpack line
+      _ -> send p $ ConMsg line
 
 
 conWriter :: ConSrv
-conWriter p = 
-  forever $ (expect :: Process String) >>= print
+conWriter p = (expect :: Process Text) >>= putStrLn
 
 
 -- Forth stuff
@@ -83,20 +79,16 @@ fthOutput :: FthSrv
 fthOutput p hOut = 
   forever $ do 
     line <- liftIO $ hGetLine hOut
-    send p $ FthMsg line
+    send p $ FthMsg $ pack line
 
 fthInput :: FthSrv
 fthInput p hIn = 
   forever $ do 
     line <- expect
-    liftIO $ hPutStrLn hIn line
+    liftIO $ hPutStrLn hIn $ unpack line
 
 
 -- message dispatching
-
-data Message = ConMsg String | FthMsg String | QuitMsg
-  deriving (Generic, Typeable)
-instance Binary Message
 
 run :: IO ()
 run = do
@@ -116,9 +108,7 @@ run = do
             loop fthIn conW = do
                 msg <- expect
                 case msg of
+                  QuitMsg -> send fthIn ("bye\n" :: Text)
                   ConMsg txt -> send fthIn txt >> loop fthIn conW
                   FthMsg txt -> send conW txt >> loop fthIn conW
-                  QuitMsg -> do 
-                    send fthIn ("bye\n" :: String)
-                    return ()
 
