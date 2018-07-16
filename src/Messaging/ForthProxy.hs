@@ -49,8 +49,6 @@ handleQuit pid QuitMsg =
 
 -- console service
 
-data ConParams = ConParams { p_conR :: ProcessId, p_conW :: ProcessId }
-
 data ConMsg = ConMsg Text
   deriving (Show, Generic, Typeable)
 instance Binary ConMsg
@@ -79,11 +77,11 @@ handleConMsg pid (ConMsg txt) =
 
 -- Forth proxy service
 
+data FthConfig = FthConfig { cfg_forthCommand :: Text }
+
 data FthParams = FthParams { 
         p_hIn :: Handle, p_hOut :: Handle , 
         p_hErr :: Handle, p_hProc :: ProcessHandle}
-
-data FthConfig = FthConfig { cfg_forthCommand :: Text }
 
 data FthMsg = FthMsg Text
   deriving (Show, Generic, Typeable)
@@ -103,16 +101,12 @@ fthInput :: ProcessId -> FthParams -> Process ()
 fthInput parent params = do
   let hIn = p_hIn params
   pidOut <- spawnLocal $ fthOutput parent params
-  forever $ do 
-    line <- expect
-    liftIO $ hPutStrLn hIn $ T.unpack line
+  forever $ expect >>= liftIO . hPutStrLn hIn . T.unpack
 
 fthOutput :: ProcessId -> FthParams -> Process ()
-fthOutput parent params = do
-  let hOut = p_hOut params
-  forever $ do 
-    line <- liftIO $ hGetLine hOut
-    send parent $ FthMsg $ T.pack line
+fthOutput parent params =
+  let hOut = p_hOut params in
+    forever $ liftIO (hGetLine hOut) >>= send parent . FthMsg . T.pack
 
 handleFthMsg :: ProcessId -> FthMsg -> Process Bool
 handleFthMsg pid (FthMsg txt) = 
