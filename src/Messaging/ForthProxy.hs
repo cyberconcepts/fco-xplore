@@ -24,8 +24,8 @@ import System.IO (
     BufferMode (NoBuffering), Handle,
     hSetBuffering, hGetLine, hPutStrLn)
 import System.Process (
-    StdStream (CreatePipe), 
-    proc, shell, std_in, std_out, withCreateProcess)
+    StdStream (CreatePipe), ProcessHandle, 
+    createProcess, proc, shell, std_err, std_in, std_out)
 
 
 forthHome = "~/development/forth/"
@@ -36,103 +36,107 @@ host = "127.0.0.1"
 port = "8899"
 
 
--- control
+-- control messages
 
 data CtlMsg = QuitMsg
   deriving (Show, Generic, Typeable)
 instance Binary CtlMsg
 
-processQuit :: ProcessId -> CtlMsg -> Process Bool
-processQuit pid QuitMsg = 
+handleQuit :: ProcessId -> CtlMsg -> Process Bool
+handleQuit pid QuitMsg = 
     send pid ("bye\n" :: Text) >> return False
 
 
--- console
+-- console service
+
+data ConParams = ConParams { p_conR :: ProcessId, p_conW :: ProcessId }
 
 data ConMsg = ConMsg Text
   deriving (Show, Generic, Typeable)
 instance Binary ConMsg
 
-type ConSrv = ProcessId -> Process ()
+setupConsole :: ProcessId -> Process ProcessId
+setupConsole parent = do
+    spawnLocal (conWriter parent) >>= return
 
-console :: ProcessId -> ConSrv -> ConSrv
-              -> Process (ProcessId, ProcessId)
-console parent reader writer = do
-    pidR <- spawnLocal $ reader parent
-    pidW <- spawnLocal $ writer parent
-    return (pidR, pidW)
+conWriter :: ProcessId -> Process ()
+conWriter parent = do
+    pidR <- spawnLocal $ conReader parent
+    forever $ do expect >>= putStrLn
 
-conReader :: ConSrv
-conReader p = 
-  forever $ do
-    line <- getLine
-    case line of
-      "bye" -> send p QuitMsg
-      _ -> send p $ ConMsg line
+conReader :: ProcessId -> Process ()
+conReader parent =
+    forever $ do
+      line <- getLine
+      case line of
+        "bye" -> send parent QuitMsg
+        _ -> send parent $ ConMsg line
 
-conWriter :: ConSrv
-conWriter p = forever $ do expect >>= putStrLn
-
-processConMsg :: ProcessId -> ConMsg -> Process Bool
-processConMsg pid (ConMsg txt) = 
+handleConMsg :: ProcessId -> ConMsg -> Process Bool
+handleConMsg pid (ConMsg txt) = 
     send pid txt >> return True
 
 
--- Forth stuff
+-- Forth proxy service
+
+data FthParams = FthParams { 
+        p_hIn :: Handle, p_hOut :: Handle , 
+        p_hErr :: Handle, p_hProc :: ProcessHandle}
+
+data FthConfig = FthConfig { cfg_forthCommand :: Text }
 
 data FthMsg = FthMsg Text
   deriving (Show, Generic, Typeable)
 instance Binary FthMsg
 
-type FthSrv = ProcessId -> Handle -> Process ()
+setupForth :: ProcessId -> FthConfig -> Process ProcessId
+setupForth parent config = do
+    (Just hIn, Just hOut, Just hErr, hProc) <- liftIO $ createProcess 
+            (shell $ T.unpack forthCommand)
+            { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe } 
+    liftIO $ hSetBuffering hIn NoBuffering
+    liftIO $ hSetBuffering hOut NoBuffering
+    let params = FthParams hIn hOut hErr hProc
+    spawnLocal (fthInput parent params) >>= return
 
-forth :: ProcessId -> FthSrv -> FthSrv -> Handle -> Handle
-              -> Process (ProcessId, ProcessId)
-forth parent output input hOut hIn = do
-      pidOut <- spawnLocal $ output parent hOut
-      pidIn <- spawnLocal $ input parent hIn
-      return (pidOut, pidIn)
-
-fthOutput :: FthSrv
-fthOutput p hOut = 
-  forever $ do 
-    line <- liftIO $ hGetLine hOut
-    send p $ FthMsg $ T.pack line
-
-fthInput :: FthSrv
-fthInput p hIn = 
+fthInput :: ProcessId -> FthParams -> Process ()
+fthInput parent params = do
+  let hIn = p_hIn params
+  pidOut <- spawnLocal $ fthOutput parent params
   forever $ do 
     line <- expect
     liftIO $ hPutStrLn hIn $ T.unpack line
 
-processFthMsg :: ProcessId -> FthMsg -> Process Bool
-processFthMsg pid (FthMsg txt) = 
+fthOutput :: ProcessId -> FthParams -> Process ()
+fthOutput parent params = do
+  let hOut = p_hOut params
+  forever $ do 
+    line <- liftIO $ hGetLine hOut
+    send parent $ FthMsg $ T.pack line
+
+handleFthMsg :: ProcessId -> FthMsg -> Process Bool
+handleFthMsg pid (FthMsg txt) = 
     send pid txt >> return True
 
 
--- message dispatching
+-- application
 
 run :: IO ()
 run = do
     backend <- initializeBackend host port initRemoteTable
     node <- newLocalNode backend
-    withCreateProcess (shell forthCommand)
-      { std_in = CreatePipe, std_out = CreatePipe } 
-      $ \(Just hIn) (Just hOut) _ hProc -> do
-        hSetBuffering hIn NoBuffering
-        hSetBuffering hOut NoBuffering
-        runProcess node $ do
-          self <- getSelfPid
-          (_, conW) <- console self conReader conWriter
-          (_, fthIn) <- forth self fthOutput fthInput hOut hIn
-          loop fthIn conW
-          where 
-            loop fthIn conW = do
-              continue <- receiveWait [
-                    match $ processQuit fthIn, 
-                    match $ processFthMsg conW, 
-                    match $ processConMsg fthIn]
-              case continue of
-                True -> loop fthIn conW
-                _ -> return ()
+    runProcess node $ do
+      self <- getSelfPid
+      conW <- setupConsole self
+      fthIn <- setupForth self $ FthConfig forthCommand
+      loop fthIn conW
+      where 
+        loop fthIn conW = do
+          continue <- receiveWait [
+                match $ handleQuit fthIn, 
+                match $ handleFthMsg conW, 
+                match $ handleConMsg fthIn]
+          case continue of
+            True -> loop fthIn conW
+            _ -> return ()
 
