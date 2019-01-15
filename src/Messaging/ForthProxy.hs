@@ -60,7 +60,7 @@ setupConsole parent = do
 conWriter :: ProcessId -> Process ()
 conWriter parent = do
     pidR <- spawnLocal $ conReader parent
-    forever $ do expect >>= putStrLn
+    forever $ expect >>= putStrLn
 
 conReader :: ProcessId -> Process ()
 conReader parent =

@@ -27,15 +27,20 @@ library
                     , Data.String.Strip
                     , Messaging.ForthProxy
   build-depends:      base >= 4.7 && < 5
+                    --, base58string
                     , base-compat
                     , basic-prelude
                     , binary
+                    , bytestring
                     --, comonad
+                    , cryptonite
                     , containers
+                    , data-hash
                     , deepseq
                     --, extensible-effects
                     , freer-simple
                     , generic-deriving
+                    , ghc
                     , megaparsec
                     --, reactive-banana
                     , text
@@ -47,6 +52,7 @@ library
                     --, pipes-text
                     , process
                     , QuickCheck
+                    , transformers
                     , turtle
   default-language:   Haskell2010
 
