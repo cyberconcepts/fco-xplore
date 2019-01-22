@@ -23,8 +23,8 @@ library
                     --, Parsing
                     --, Xplore.Extensible
                     --, Xplore.PipesTut
+                    , Xplore.Service
                     , Yapa
-                    , Data.String.Strip
                     , Messaging.ForthProxy
   build-depends:      base >= 4.7 && < 5
                     --, base58string
@@ -52,6 +52,7 @@ library
                     --, pipes-text
                     , process
                     , QuickCheck
+                    , stm
                     , transformers
                     , turtle
   default-language:   Haskell2010
@@ -67,6 +68,7 @@ executable fco-xplore
 test-suite fco-xplore-test
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test
+  other-modules:      Xplore.ServiceSpec
   main-is:            Spec.hs
   build-depends:      base
                     , fco-xplore
