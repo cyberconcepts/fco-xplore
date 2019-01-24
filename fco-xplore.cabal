@@ -38,6 +38,7 @@ library
                     , data-hash
                     , deepseq
                     --, extensible-effects
+                    , extra
                     , freer-simple
                     , generic-deriving
                     , ghc
